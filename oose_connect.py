@@ -1,69 +1,80 @@
-
 #!/usr/bin/python
 # coding=UTF-8
 
+import SocketServer, sys, threading
+from time import ctime
 import MySQLdb
-import socket,sys,time
-from thread import *
 
-def MYSQL_Conn():
-    ssid=[]
-    # Open database connection
-    db = MySQLdb.connect("localhost","root","ib402","oose" )
+HOST= '140.123.92.243'
+PORT = 12345
 
-    # prepare a cursor object using cursor() method
-    cursor = db.cursor()
 
-    # Prepare SQL query to INSERT a record into the database.
-    sql = "SELECT * FROM gate1"
-    try:
-       # Execute the SQL command
-       cursor.execute(sql)
-       # Fetch all the rows in a list of lists.
-       results = cursor.fetchall()
-       for row in results:
-          ssid.append(row[1])
-          # Now print fetched result
-          print ssid
-    except:
-       print "Error: unable to fecth data"
-
-    # disconnect from server
-    db.close()
-    return ssid
 def Compare_DB(Door,SSID):
-    if Door in SSID:
-        return True
-    else:
-        return False
+	if Door in SSID:
+		return True
+	else:
+		return False
 
-def ThreadWork(client):
-    while True:
-        msg = client.recv(1024)
-        if not msg:
-            pass
-        else:
-            print "Client send: " + msg
-            SSID=MYSQL_Conn()
-            if Compare_DB(Door,SSID) is True:
-                client.send("1")
-            else:
-                client.send("0")
-    client.close()
-def Sock_Server(Host,Port):
-    sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    sock.bind((Host,Port))
-    sock.listen(5)
+class MyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+	daemon_threads = True
+ 	allow_reuse_address = True
 
-    while True:
-        connection,address=sock.accept()
-        start_new_thread(ThreadWork, (connection,))
+class MyHandler(SocketServer.StreamRequestHandler):
+	def handle(self):
+		ssid=[]
+ 		cur = threading.current_thread()
+		print '[%s] Client connected from %s and [%s] is handling with him.' % (ctime(), self.request.getpeername(), cur.name)
+		while True:
+			msg = self.request.recv(1024).strip()
+			if not msg:
+				pass
+			else:
+				print "Client send SSID: " + msg 
+				ssid=MySQL.Sol_Connect("localhost","root","ib402","oose" )
+				if MySQL.Compare_DB(msg,ssid) is True:	
+					self.wfile.write("1\r\n")
+				else:
+					self.wfile.write("0\r\n")
+		self.request.close()
+class MySQL():
+	@staticmethod
+	def  Sol_Connect(IP,User,Passwd,Table):
+		print 1
+		# Open database connection
+		db = MySQLdb.connect(IP,User,Passwd,Table ) 
+		print 2
+		ssid=[] #declare  a list
+		# prepare a cursor object using cursor() method
+	    	cursor = db.cursor()
 
-    sock.close()
+		# Prepare SQL query to INSERT a record into the database.
+		sql = "SELECT * FROM gate1"
+		try:
+			# Execute the SQL command
+			cursor.execute(sql)
+			# Fetch all the rows in a list of lists.
+			results = cursor.fetchall()
+			for row in results:
+	 			ssid.append(row[1])
+				 # Now print fetched result
+	 			print ssid
+			return ssid
+		except:
+			print "Error: unable to fecth data"
+			# disconnect from server
+			db.close()
 
-def main():
-    Host='140.124.92.243'
-    Port=8888
-    Sock_Server(Host,Port)
-
-main()
+	@staticmethod
+	def Compare_DB(Door,SSID):
+		if Door in SSID:
+			return True
+		else:
+			return False
+if __name__ == '__main__':
+	server = MyServer((HOST,PORT), MyHandler)
+	ip, port = server.server_address
+	print "Server is starting at:", (ip, port)
+	try:
+		server.serve_forever()
+	except KeyboardInterrupt:
+		sys.exit(0)
