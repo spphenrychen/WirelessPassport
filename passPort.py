@@ -6,8 +6,8 @@ import RPi.GPIO as GPIO
 from datetime import datetime
 from wifi import Cell, Scheme
 
-HOST = '10.42.0.1'
-PORT = 50030
+HOST = '140.123.92.243'
+PORT = 12346
 
 global s
 
@@ -16,6 +16,12 @@ class Userdata:
 		self.ssid = ssid
 		self.addr = addr
 		self.rssi = rssi
+
+class StateList:
+	def __init__(self, rssi):
+		self.state = 'None'
+		self.rssi = [rssi]
+
 
 class Switch:
 	def __init__(self, openPin, alarmPin):
@@ -59,7 +65,8 @@ class wifiDirectScan(threading.Thread):
 		super(wifiDirectScan, self).__init__()
 		self.setDaemon(True)
 		self.conn = conn
-
+		self.userList = {}
+		
 	def run(self):
 		while True:
 			#scan wifi direct device list in range
@@ -71,16 +78,57 @@ class wifiDirectScan(threading.Thread):
 				for item in cell:
 					usData = Userdata(item.ssid, item.address, item.signal)
 					self.Print(i, usData)
+					print "-----------------"
 					i = i + 1
 
-					self.Send(usData)
+					self.Check(usData)
 					self.Log(usData)
-				print "-----------------"
+					print usData.addr
+					print self.userList[usData.addr].rssi
 			else:
 				print "No device found..."
 
+	def Check(self, usData):
+		#if userList is null
+		if not self.userList:
+			userstate = StateList(usData.rssi)
+			self.userList.update({usData.addr:userstate})
+			return
+
+		#if user address is not in userList
+		if usData.addr not in self.userList:
+			userstate = StateList(usData.rssi)
+			self.userList.update({usData.addr:userstate})
+			return
+		#if user is out of 2 meters
+		if usData.rssi < -70:
+			return
+		
+		curState = self.userList[usData.addr].state
+		curRssiList = self.userList[usData.addr].rssi
+		#append rssi into userList
+		self.userList[usData.addr].rssi.append(usData.rssi)
+
+		#get at least 3 times data
+		if len(curRssiList) < 3:
+			return
+
+		#if a person stay enough long to open door
+		if all( x > -60 for x in curRssiList[-3:]):
+			self.Send(usData)
+			self.userList[usData.addr].rssi = []
+
 	def Send(self, usData):
-		self.conn.send(usData.addr)
+
+		addrlist = usData.addr.split(":")
+		addrStr = ""
+
+		for item in addrlist:
+			addrStr += item
+
+		reqData = "1 " + addrStr
+		print reqData
+		self.conn.send(reqData)
 
 	def Log(self, usData):
 		log = open(str(usData.addr)+'.txt', 'a')
@@ -105,7 +153,7 @@ def main():
 	recvT = thread_recv(s,sw)
 	recvT.start()
 	#start wifi direct scaning thread
-	wifiScantask = wifiDirectScan(s,dataq)
+	wifiScantask = wifiDirectScan(s)
 	wifiScantask.start()
 
 	while True:
