@@ -6,7 +6,7 @@ import RPi.GPIO as GPIO
 from datetime import datetime
 from wifi import Cell, Scheme
 
-HOST = '140.123.92.243'
+HOST = '10.42.0.1'
 PORT = 12346
 
 global s
