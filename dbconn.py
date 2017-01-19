@@ -10,7 +10,7 @@ class DBConn:
 	def __init__(self):
 		self.host = 'localhost'
 		self.user = 'root'
-		self.passwd = 'ib402'
+		self.passwd = 'xxxxx'
 		self.dbname = 'oose'
 
 	def dbConnect(self):
