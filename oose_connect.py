@@ -7,7 +7,7 @@ import MySQLdb
 import dbconn
 
 
-HOST= '140.123.92.243'
+HOST= '10.42.0.90'
 PORT = 12345
 
 
